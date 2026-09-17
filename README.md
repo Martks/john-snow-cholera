@@ -6,7 +6,8 @@
 
 - интерактивная карта Leaflet;
 - современная подложка OpenStreetMap;
-- геопривязанная тайловая карта Джона Сноу 1855 года как отдельная подложка;
+- оригинальная карта Джона Сноу `Snow-cholera-map-1.jpg` из Wikimedia Commons, геопривязанная через Wikimedia Maps Warper;
+- альтернативная геопривязанная версия той же карты через Esri;
 - ползунок прозрачности исторической карты;
 - слои `Deaths`, `Pumps` и `Buffers` с переключателем;
 - масштабируемые по `count` точки смертей и всплывающие подсказки;
@@ -112,7 +113,8 @@ py -m http.server 8000
 
 - `data/*.geojson` — реальные данные исследования, подготовленные и экспортированные из QGIS: 8 колонок, 250 точек смертей и 8 буферов радиусом 120 м.
 - Современная подложка: © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), стандартные растровые тайлы. Атрибуция также постоянно видна в правом нижнем углу карты.
-- Историческая подложка: геопривязанный к Web Mercator тайловый слой [Snow Cholera Map Detailed](https://tiles.arcgis.com/tiles/j80Jz20at6Bi0thr/arcgis/rest/services/Snow_cholera_map_detailed/MapServer) — карта, созданная C. F. Cheffins для Джона Сноу и опубликованная в 1855 году по данным вспышки 1854 года. Сервис сообщает, что слой предназначен для учебного использования и основан на изображении из Wikimedia Commons. Тайлы работают без API-ключа; attribution постоянно видна на карте.
+- Основная историческая подложка: оригинальный public-domain файл [Snow-cholera-map-1.jpg](https://commons.wikimedia.org/wiki/File:Snow-cholera-map-1.jpg), созданный Джоном Сноу и C. F. Cheffins в 1854–1855 годах. Используется готовая геопривязка [Wikimedia Maps Warper, map 3441](https://warper.wmflabs.org/maps/3441) с открытыми XYZ-тайлами и без API-ключа.
+- Альтернативная историческая подложка: геопривязанный к Web Mercator тайловый слой [Snow Cholera Map Detailed](https://tiles.arcgis.com/tiles/j80Jz20at6Bi0thr/arcgis/rest/services/Snow_cholera_map_detailed/MapServer) через Esri. Он основан на том же изображении Wikimedia Commons и также работает без API-ключа.
 - Библиотека: [Leaflet 1.9.4](https://leafletjs.com/), подключена с официально указанного CDN с проверкой целостности файла.
 
 Стандартные тайлы OpenStreetMap подходят для демонстрационного учебного проекта с умеренным трафиком. При массовом использовании следует ознакомиться с актуальной [политикой использования тайлов](https://operations.osmfoundation.org/policies/tiles/).

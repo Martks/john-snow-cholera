@@ -25,25 +25,46 @@
     attribution: osmAttribution
   });
 
-  const historicalContext = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  const snowContext = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
-    opacity: 0.16,
+    opacity: 0.12,
     attribution: osmAttribution
   });
-  const historicalTiles = L.tileLayer(
+  const snowTiles = L.tileLayer(
+    "https://warper.wmflabs.org/maps/tile/3441/{z}/{x}/{y}.png",
+    {
+      minZoom: 14,
+      maxZoom: 21,
+      opacity: 0.9,
+      bounds: [[51.5091122, -0.1441628], [51.5168847, -0.1306517]],
+      noWrap: true,
+      attribution: 'Карта: <a href="https://commons.wikimedia.org/wiki/File:Snow-cholera-map-1.jpg" target="_blank" rel="noopener">John Snow / C. F. Cheffins, 1854–1855</a> · public domain · геопривязка: <a href="https://warper.wmflabs.org/maps/3441" target="_blank" rel="noopener">Wikimedia Maps Warper</a>'
+    }
+  );
+  const snowHistoricalBase = L.layerGroup([
+    snowContext,
+    snowTiles
+  ]);
+
+  const alternativeContext = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    opacity: 0.12,
+    attribution: osmAttribution
+  });
+  const alternativeHistoricalTiles = L.tileLayer(
     "https://tiles.arcgis.com/tiles/j80Jz20at6Bi0thr/arcgis/rest/services/Snow_cholera_map_detailed/MapServer/tile/{z}/{y}/{x}",
     {
       minZoom: 14,
       maxZoom: 21,
       maxNativeZoom: 19,
-      opacity: 0.88,
+      opacity: 0.9,
       bounds: [[51.5090, -0.1442], [51.5171, -0.1307]],
-      attribution: 'Историческая карта: John Snow / C. F. Cheffins, 1855 · <a href="https://www.arcgis.com/home/item.html?id=830cebdbe3fa4e1da5627fbbb6e97fdd" target="_blank" rel="noopener">Esri</a> · источник изображения: Wikimedia Commons'
+      attribution: 'Карта: John Snow / C. F. Cheffins, 1855 · <a href="https://www.arcgis.com/home/item.html?id=830cebdbe3fa4e1da5627fbbb6e97fdd" target="_blank" rel="noopener">Esri</a> · исходное изображение: <a href="https://commons.wikimedia.org/wiki/File:Snow-cholera-map-1.jpg" target="_blank" rel="noopener">Wikimedia Commons</a>'
     }
   );
-  const historicalBase = L.layerGroup([
-    historicalContext,
-    historicalTiles
+  const alternativeHistoricalBase = L.layerGroup([
+    alternativeContext,
+    alternativeHistoricalTiles
   ]);
   modernMap.addTo(map);
 
@@ -55,7 +76,11 @@
   let pumpAnalysis = [];
 
   L.control.layers(
-    { "Современная карта": modernMap, "Историческая карта": historicalBase },
+    {
+      "Современная карта": modernMap,
+      "Карта Сноу 1854/55": snowHistoricalBase,
+      "Альтернативная историческая карта": alternativeHistoricalBase
+    },
     { "Deaths — смерти": deathsLayer, "Pumps — колонки": pumpsLayer, "Buffers — 120 м": buffersLayer },
     { position: "topright", collapsed: false }
   ).addTo(map);
@@ -63,14 +88,15 @@
   const opacityControl = L.control({ position: "topright" });
   opacityControl.onAdd = function () {
     const div = L.DomUtil.create("div", "history-opacity is-hidden");
-    div.innerHTML = '<label for="history-opacity-range"><span>Прозрачность истории</span><strong>88%</strong></label><input id="history-opacity-range" type="range" min="10" max="100" value="88" step="1" aria-label="Прозрачность исторической карты">';
+    div.innerHTML = '<label for="history-opacity-range"><span>Прозрачность подложки</span><strong>90%</strong></label><input id="history-opacity-range" type="range" min="10" max="100" value="90" step="1" aria-label="Прозрачность исторической карты">';
     const range = div.querySelector("input");
     const value = div.querySelector("strong");
     L.DomEvent.disableClickPropagation(div);
     L.DomEvent.disableScrollPropagation(div);
     range.addEventListener("input", function () {
       const opacity = Number(range.value) / 100;
-      historicalTiles.setOpacity(opacity);
+      snowTiles.setOpacity(opacity);
+      alternativeHistoricalTiles.setOpacity(opacity);
       value.textContent = `${range.value}%`;
     });
     return div;
@@ -79,7 +105,8 @@
 
   map.on("baselayerchange", function (event) {
     const control = document.querySelector(".history-opacity");
-    if (control) control.classList.toggle("is-hidden", event.layer !== historicalBase);
+    const isHistorical = event.layer === snowHistoricalBase || event.layer === alternativeHistoricalBase;
+    if (control) control.classList.toggle("is-hidden", !isHistorical);
   });
 
   const legend = L.control({ position: "bottomleft" });
