@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Интерактивное исследование пространственной связи водяных колонок и смертей от холеры в Сохо в 1854 году.">
+  <title>Расследование вспышки холеры Джона Сноу</title>
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://tile.openstreetmap.org">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="story-shell">
+    <aside class="story-panel" aria-label="Описание исследования">
+      <header class="hero">
+        <div class="eyebrow"><span class="eyebrow-dot"></span> Пространственный анализ · Сохо</div>
+        <h1>Расследование вспышки холеры Джона Сноу, Лондон, 1854 год</h1>
+        <p class="intro">Цель исследования — установить связь между расположением общественных водяных колонок и случаями смерти от холеры.</p>
+      </header>
+
+      <section class="finding" aria-labelledby="finding-title">
+        <div class="section-label">Главный вывод</div>
+        <h2 id="finding-title">Эпицентр вокруг одной колонки</h2>
+        <p>Одна водяная колонка имеет значительно более высокую концентрацию смертей в радиусе 120 метров. Пространственный кластер поддерживает гипотезу Джона Сноу о водном источнике заражения.</p>
+        <div class="metric-row">
+          <article class="metric-card">
+            <span class="metric-value">257</span>
+            <span class="metric-label">максимум в QGIS</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-value">212</span>
+            <span class="metric-label">для p1 в INTEGRO</span>
+          </article>
+        </div>
+        <p class="method-note">Расхождение не считается ошибкой: результат зависит от параметров, правил учёта граничных объектов и реализации пространственных операций в разных системах.</p>
+      </section>
+
+      <section class="selection-card" id="selection-card" aria-live="polite">
+        <div class="section-label">Выбранная колонка</div>
+        <div class="selection-empty" id="selection-empty">Нажмите на синий маркер, чтобы увидеть сведения.</div>
+        <div class="selection-content" id="selection-content" hidden>
+          <div class="selection-heading">
+            <h2 id="selected-name">—</h2>
+            <span class="rank-badge" id="selected-rank">—</span>
+          </div>
+          <div class="selection-stat">
+            <strong id="selected-deaths">—</strong>
+            <span>смертей в буфере 120 м</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="ranking" aria-labelledby="ranking-title">
+        <div class="section-label">Рейтинг колонок</div>
+        <h2 id="ranking-title">Смерти в радиусе 120 м</h2>
+        <ol id="pump-ranking"><li class="skeleton-line">Загрузка данных…</li></ol>
+      </section>
+
+      <footer>
+        <span>Учебная визуализация</span>
+        <span>Данные: реальные GeoJSON, подготовленные в QGIS</span>
+      </footer>
+    </aside>
+
+    <section class="map-stage" aria-label="Интерактивная карта">
+      <div class="map-toolbar">
+        <div class="map-caption">
+          <span class="caption-kicker">Лондон · 1854</span>
+          <strong>Карта случаев и источников воды</strong>
+        </div>
+        <button class="reset-button" id="reset-view" type="button" aria-label="Вернуть исходный вид карты">↺ <span>Reset view</span></button>
+      </div>
+      <div id="map" role="application" aria-label="Карта смертей, водяных колонок и буферных зон"></div>
+      <div class="map-status" id="map-status" hidden></div>
+      <div class="map-hint">Нажмите на объект для подробностей</div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="script.js"></script>
+</body>
+</html>

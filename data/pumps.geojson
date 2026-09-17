@@ -1,0 +1,15 @@
+{
+"type": "FeatureCollection",
+"name": "pumps",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{"type":"Feature","properties":{"Id":0},"geometry":{"type":"Point","coordinates":[-0.136667835223584,51.513341110577358]}},
+{"type":"Feature","properties":{"Id":0},"geometry":{"type":"Point","coordinates":[-0.139586127564204,51.513875984363544]}},
+{"type":"Feature","properties":{"Id":0},"geometry":{"type":"Point","coordinates":[-0.139670981202766,51.514905566064371]}},
+{"type":"Feature","properties":{"Id":0},"geometry":{"type":"Point","coordinates":[-0.131629815245003,51.512354016927965]}},
+{"type":"Feature","properties":{"Id":0},"geometry":{"type":"Point","coordinates":[-0.133594369998168,51.512138872501588]}},
+{"type":"Feature","properties":{"Id":0},"geometry":{"type":"Point","coordinates":[-0.135919106184737,51.51154231199466]}},
+{"type":"Feature","properties":{"Id":0},"geometry":{"type":"Point","coordinates":[-0.133961694624831,51.510019341447595]}},
+{"type":"Feature","properties":{"Id":0},"geometry":{"type":"Point","coordinates":[-0.138198726552408,51.511295219582664]}}
+]
+}
