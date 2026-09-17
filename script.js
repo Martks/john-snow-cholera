@@ -52,6 +52,7 @@
   const pumpsLayer = L.layerGroup().addTo(map);
   const pumpMarkers = new Map();
   let ranking = [];
+  let pumpAnalysis = [];
 
   L.control.layers(
     { "Современная карта": modernMap, "Историческая карта": historicalBase },
@@ -108,10 +109,18 @@
     loadGeoJSON("data/buffers.geojson")
   ]).then(([pumps, deaths, buffers]) => {
     console.log(`[GeoJSON] Загружено: pumps=${pumps.features.length}, deaths=${deaths.features.length}, buffers=${buffers.features.length}`);
-    renderBuffers(buffers);
+    pumpAnalysis = buildPumpAnalysis(pumps, deaths, buffers);
+    console.table(pumpAnalysis.map((item) => ({
+      pump_id: item.id,
+      buffer_fid: item.bufferFid,
+      death_sum: item.deathSum,
+      death_points: item.deathPointCount,
+      source: item.source
+    })));
+    renderBuffers(buffers, pumpAnalysis);
     renderDeaths(deaths);
-    renderPumps(pumps, deaths);
-    buildRanking(pumps, deaths);
+    renderPumps(pumps, pumpAnalysis);
+    buildRanking(pumpAnalysis);
 
     const renderedLayers = [
       ...buffersLayer.getLayers(),
@@ -170,7 +179,7 @@
   function renderDeaths(data) {
     L.geoJSON(data, {
       pointToLayer: (feature, latlng) => {
-        const count = positiveNumber(feature.properties && feature.properties.count, 1);
+        const count = deathCount(feature);
         return L.circleMarker(latlng, {
           radius: Math.min(18, 4 + Math.sqrt(count) * 2.15),
           color: "#8e302d",
@@ -182,7 +191,7 @@
       onEachFeature: (feature, layer) => {
         const p = feature.properties || {};
         layer.bindPopup(popup("Случай смерти", p.address || "Точка наблюдения", [
-          ["Количество", safe(p.count, 1)],
+          ["Количество смертей", deathCount(feature)],
           p.address ? ["Адрес", p.address] : null,
           p.date ? ["Дата", p.date] : null
         ]));
@@ -190,7 +199,7 @@
     }).addTo(deathsLayer);
   }
 
-  function renderPumps(data, deaths) {
+  function renderPumps(data, analysis) {
     L.geoJSON(data, {
       pointToLayer: (feature, latlng) => {
         const icon = L.divIcon({
@@ -203,23 +212,24 @@
         return L.marker(latlng, { icon, riseOnHover: true });
       },
       onEachFeature: (feature, layer) => {
-        const p = feature.properties || {};
-        const id = String(p.id || p.pump_id || "—");
-        const name = p.name || `Колонка ${id}`;
-        const deathSum = numberOrComputed(p.death_sum, feature, deaths);
-        layer.bindPopup(popup("Водяная колонка", name, [
-          ["ID", id],
-          deathSum !== null ? ["Смертей в 120 м", deathSum] : null
+        const item = analysis.find((candidate) => candidate.pumpFeature === feature);
+        if (!item) return;
+        layer.bindPopup(popup("Водяная колонка", item.name, [
+          ["ID", item.id],
+          ["Смертей в 120 м", item.deathSum],
+          ["Точек/адресов", item.deathPointCount],
+          ["Источник", item.source]
         ]));
-        layer.on("click", () => selectPump(id));
-        pumpMarkers.set(id, { layer, feature, name, deathSum });
+        layer.on("click", () => selectPump(item.id));
+        pumpMarkers.set(item.id, { layer, ...item });
       }
     }).addTo(pumpsLayer);
   }
 
-  function renderBuffers(data) {
+  function renderBuffers(data, analysis) {
     (data.features || []).forEach((feature) => {
       const p = feature.properties || {};
+      const item = analysis.find((candidate) => candidate.bufferFeature === feature);
       let layer;
       if (feature.geometry && feature.geometry.type === "Point") {
         const coords = feature.geometry.coordinates;
@@ -234,23 +244,19 @@
       } else {
         layer = L.geoJSON(feature, { style: { color: "#2e86de", weight: 2, opacity: 0.82, fillColor: "#2e86de", fillOpacity: 0.11 } });
       }
-      layer.bindPopup(popup("Буферная зона", `Колонка ${safe(p.pump_id, "—")}`, [
+      layer.bindPopup(popup("Буферная зона", item ? item.name : "Буфер 120 м", [
+        item ? ["ID", item.id] : null,
         ["Радиус", `${safe(p.radius_m, BUFFER_RADIUS)} м`],
-        ["Сумма смертей", safe(p.death_sum, "нет данных")]
+        item ? ["Точек/адресов", item.deathPointCount] : null,
+        item ? ["Сумма смертей", item.deathSum] : null,
+        item ? ["Источник", item.source] : null
       ])).addTo(buffersLayer);
     });
   }
 
-  function buildRanking(pumps, deaths) {
-    ranking = (pumps.features || []).map((feature) => {
-      const p = feature.properties || {};
-      const id = String(p.id || p.pump_id || "—");
-      return {
-        id,
-        name: p.name || `Колонка ${id}`,
-        deathSum: numberOrComputed(p.death_sum, feature, deaths) || 0
-      };
-    }).sort((a, b) => b.deathSum - a.deathSum);
+  function buildRanking(analysis) {
+    ranking = analysis.map(({ id, name, deathSum }) => ({ id, name, deathSum }))
+      .sort((a, b) => b.deathSum - a.deathSum || a.id.localeCompare(b.id, "ru", { numeric: true }));
 
     const list = document.getElementById("pump-ranking");
     list.innerHTML = "";
@@ -277,24 +283,181 @@
     document.getElementById("selected-name").textContent = selected.name;
     document.getElementById("selected-rank").textContent = rankIndex >= 0 ? `№ ${rankIndex + 1}` : "—";
     document.getElementById("selected-deaths").textContent = selected.deathSum ?? "—";
+    document.getElementById("selected-points").textContent = selected.deathPointCount;
+    document.getElementById("selected-source").textContent = selected.source;
     if (moveToMarker) {
       map.flyTo(selected.layer.getLatLng(), Math.max(map.getZoom(), 17), { duration: 0.7 });
       selected.layer.openPopup();
     }
   }
 
-  function numberOrComputed(value, pumpFeature, deaths) {
-    const parsed = Number(value);
-    if (value !== undefined && value !== null && Number.isFinite(parsed)) return parsed;
-    if (!pumpFeature.geometry || pumpFeature.geometry.type !== "Point") return null;
+  function buildPumpAnalysis(pumps, deaths, buffers) {
+    const pumpFeatures = pumps.features || [];
+    const bufferFeatures = buffers.features || [];
+    const deathFeatures = deaths.features || [];
+    const assignments = assignBuffersToPumps(pumpFeatures, bufferFeatures);
+    const rawPumpIds = pumpFeatures.map((feature) => propertyValue(feature.properties, ["pump_id", "id"]));
+    const usablePumpIds = rawPumpIds.every((value) => value !== undefined && value !== null && value !== "")
+      && new Set(rawPumpIds.map(String)).size === pumpFeatures.length;
+
+    return pumpFeatures.map((pumpFeature, index) => {
+      const bufferFeature = assignments.get(pumpFeature) || null;
+      const bufferFid = bufferFeature ? propertyValue(bufferFeature.properties, ["fid", "buffer_id", "id"]) : null;
+      const sourceId = usablePumpIds ? rawPumpIds[index] : bufferFid;
+      const id = formatPumpId(sourceId, index);
+      const nameValue = propertyValue(pumpFeature.properties, ["name"]);
+      const name = nameValue ? String(nameValue) : `Колонка ${id}`;
+      const qgisSum = bufferFeature ? numericProperty(bufferFeature.properties, ["Count_sum", "sum_Count", "death_sum"]) : { found: false, value: null, field: null };
+      const deathsInside = deathFeatures.filter((death) => deathInsideAnalysisArea(death, pumpFeature, bufferFeature));
+      const calculatedSum = deathsInside.reduce((sum, death) => sum + deathCount(death), 0);
+      const deathSum = qgisSum.found ? (qgisSum.value ?? 0) : calculatedSum;
+      const source = qgisSum.found ? `QGIS: ${qgisSum.field}` : "расчёт по Count";
+      return {
+        id,
+        name,
+        pumpFeature,
+        bufferFeature,
+        bufferFid: bufferFid ?? "—",
+        deathSum,
+        deathPointCount: deathsInside.length,
+        source
+      };
+    });
+  }
+
+  function assignBuffersToPumps(pumpFeatures, bufferFeatures) {
+    const candidates = [];
+    bufferFeatures.forEach((bufferFeature) => {
+      const center = geometryCenter(bufferFeature.geometry);
+      if (!center) return;
+      pumpFeatures.forEach((pumpFeature) => {
+        if (!pumpFeature.geometry || pumpFeature.geometry.type !== "Point") return;
+        const [pumpLng, pumpLat] = pumpFeature.geometry.coordinates;
+        candidates.push({
+          bufferFeature,
+          pumpFeature,
+          distance: distanceMeters(center[1], center[0], pumpLat, pumpLng)
+        });
+      });
+    });
+    candidates.sort((a, b) => a.distance - b.distance);
+    const assignedBuffers = new Set();
+    const assignedPumps = new Set();
+    const result = new Map();
+    candidates.forEach(({ bufferFeature, pumpFeature }) => {
+      if (assignedBuffers.has(bufferFeature) || assignedPumps.has(pumpFeature)) return;
+      assignedBuffers.add(bufferFeature);
+      assignedPumps.add(pumpFeature);
+      result.set(pumpFeature, bufferFeature);
+    });
+    return result;
+  }
+
+  function geometryCenter(geometry) {
+    if (!geometry) return null;
+    if (geometry.type === "Point") return geometry.coordinates;
+    const points = [];
+    collectCoordinates(geometry.coordinates, points);
+    if (!points.length) return null;
+    const lngs = points.map((point) => point[0]);
+    const lats = points.map((point) => point[1]);
+    return [(Math.min(...lngs) + Math.max(...lngs)) / 2, (Math.min(...lats) + Math.max(...lats)) / 2];
+  }
+
+  function collectCoordinates(value, points) {
+    if (!Array.isArray(value)) return;
+    if (value.length >= 2 && Number.isFinite(value[0]) && Number.isFinite(value[1])) {
+      points.push(value);
+      return;
+    }
+    value.forEach((child) => collectCoordinates(child, points));
+  }
+
+  function deathInsideAnalysisArea(deathFeature, pumpFeature, bufferFeature) {
+    if (!deathFeature.geometry || deathFeature.geometry.type !== "Point") return false;
+    const point = deathFeature.geometry.coordinates;
+    if (bufferFeature && ["Polygon", "MultiPolygon"].includes(bufferFeature.geometry && bufferFeature.geometry.type)) {
+      return pointInGeometry(point, bufferFeature.geometry);
+    }
+    if (!pumpFeature.geometry || pumpFeature.geometry.type !== "Point") return false;
     const [lng, lat] = pumpFeature.geometry.coordinates;
-    return (deaths.features || []).reduce((sum, death) => {
-      if (!death.geometry || death.geometry.type !== "Point") return sum;
-      const [deathLng, deathLat] = death.geometry.coordinates;
-      return distanceMeters(lat, lng, deathLat, deathLng) <= BUFFER_RADIUS
-        ? sum + positiveNumber(death.properties && death.properties.count, 1)
-        : sum;
-    }, 0);
+    return distanceMeters(lat, lng, point[1], point[0]) <= BUFFER_RADIUS;
+  }
+
+  function pointInGeometry(point, geometry) {
+    if (geometry.type === "Polygon") return pointInPolygon(point, geometry.coordinates);
+    if (geometry.type === "MultiPolygon") return geometry.coordinates.some((polygon) => pointInPolygon(point, polygon));
+    return false;
+  }
+
+  function pointInPolygon(point, rings) {
+    if (!rings.length || !pointInRing(point, rings[0])) return false;
+    return !rings.slice(1).some((ring) => pointInRing(point, ring));
+  }
+
+  function pointInRing(point, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const a = ring[j];
+      const b = ring[i];
+      if (pointOnSegment(point, a, b)) return true;
+      const crosses = ((b[1] > point[1]) !== (a[1] > point[1]))
+        && point[0] < (a[0] - b[0]) * (point[1] - b[1]) / (a[1] - b[1]) + b[0];
+      if (crosses) inside = !inside;
+    }
+    return inside;
+  }
+
+  function pointOnSegment(point, a, b) {
+    const epsilon = 1e-10;
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const lengthSquared = dx * dx + dy * dy;
+    if (lengthSquared <= epsilon * epsilon) {
+      return Math.hypot(point[0] - a[0], point[1] - a[1]) <= epsilon;
+    }
+    const cross = (point[1] - a[1]) * dx - (point[0] - a[0]) * dy;
+    if (Math.abs(cross) > epsilon) return false;
+    const dot = (point[0] - a[0]) * dx + (point[1] - a[1]) * dy;
+    return dot >= -epsilon && dot <= lengthSquared + epsilon;
+  }
+
+  function deathCount(feature) {
+    const value = propertyValue(feature.properties, ["Count", "count", "COUNT"]);
+    const count = Number(value);
+    return Number.isFinite(count) && count >= 0 ? count : 0;
+  }
+
+  function propertyValue(properties, names) {
+    if (!properties) return undefined;
+    const keys = Object.keys(properties);
+    for (const name of names) {
+      const key = keys.find((candidate) => candidate.toLowerCase() === name.toLowerCase());
+      if (key) return properties[key];
+    }
+    return undefined;
+  }
+
+  function numericProperty(properties, names) {
+    if (!properties) return { found: false, value: null, field: null };
+    const keys = Object.keys(properties);
+    for (const name of names) {
+      const key = keys.find((candidate) => candidate.toLowerCase() === name.toLowerCase());
+      if (!key) continue;
+      const raw = properties[key];
+      if (raw === null || raw === "") return { found: true, value: 0, field: key };
+      const value = Number(raw);
+      return { found: true, value: Number.isFinite(value) ? value : 0, field: key };
+    }
+    return { found: false, value: null, field: null };
+  }
+
+  function formatPumpId(value, index) {
+    if (value !== undefined && value !== null && value !== "") {
+      const text = String(value).trim();
+      return /^p/i.test(text) ? text.toLowerCase() : `p${text}`;
+    }
+    return `p${index + 1}`;
   }
 
   function distanceMeters(lat1, lng1, lat2, lng2) {

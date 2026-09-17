@@ -92,6 +92,9 @@ h1 {
 .selection-stat { display: flex; align-items: baseline; gap: 9px; margin-top: 15px; }
 .selection-stat strong { color: var(--blue-bright); font-family: Georgia, serif; font-size: 2.2rem; }
 .selection-stat span { color: var(--muted); font-size: 0.72rem; }
+.selection-details { display: grid; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.08); }
+.selection-details span { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 0.7rem; }
+.selection-details strong { color: #d8d7d0; text-align: right; font-weight: 700; }
 
 .ranking ol { list-style: none; padding: 0; margin: 17px 0 0; }
 .ranking li { display: grid; grid-template-columns: 25px 1fr auto; align-items: center; gap: 9px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.07); color: #d4d2ca; font-size: .8rem; }
